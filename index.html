@@ -39,6 +39,60 @@
       width: 90%;
     }
 
+    /* ===== 前置启动按钮 ===== */
+    .ready-btn-wrapper {
+      text-align: center;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .ready-btn {
+      font-family: 'Press Start 2P', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      font-size: clamp(11px, 2.2vw, 15px);
+      color: #5D4E5F;
+      background: linear-gradient(135deg, #F5E6F0, #F0E6EF, #FBE8F0);
+      border: 3px solid #C9B8D4;
+      padding: 1.2rem 2.5rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      outline: none;
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4,
+        0 6px 0 #B8A0C0;
+      image-rendering: pixelated;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.5s ease;
+      animation: btnAppear 0.6s ease;
+    }
+
+    @keyframes btnAppear {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .ready-btn:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4,
+        0 8px 0 #B8A0C0;
+    }
+
+    .ready-btn:active {
+      transform: translateY(3px);
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4,
+        0 2px 0 #B8A0C0;
+    }
+
+    .ready-btn.fade-out {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
+    }
+
     /* ===== 加载文案 ===== */
     .loading-text {
       color: #5D4E5F;
@@ -105,7 +159,12 @@
 </head>
 <body>
 
-  <div class="loading-container">
+  <!-- 前置启动按钮 -->
+  <div class="ready-btn-wrapper" id="readyBtnWrapper">
+    <button class="ready-btn" id="readyBtn">Are you ready？</button>
+  </div>
+
+  <div class="loading-container" id="loadingContainer" style="display:none;">
     <!-- 加载文案 -->
     <p class="loading-text">与你并肩加载中</p>
 
@@ -244,25 +303,25 @@
         updateProgress();
       }
 
-      // ----- 页面就绪后启动 -----
-      // 先尝试激活音频上下文（某些浏览器需要用户手势）
-      // 这里在加载阶段使用交互来激活
-      document.addEventListener('click', function activate() {
+      // ----- 前置按钮交互：点击后解锁音频并启动加载 -----
+      var readyBtn = document.getElementById('readyBtn');
+      var readyBtnWrapper = document.getElementById('readyBtnWrapper');
+      var loadingContainer = document.getElementById('loadingContainer');
+
+      readyBtn.addEventListener('click', function () {
+        // 激活音频上下文（用户手势解锁浏览器自动播放限制）
         getAudioCtx();
-      }, { once: true });
-
-      // 页面加载完成后启动进度条
-      window.addEventListener('load', function () {
-        // 尝试提前激活音频
-        try { getAudioCtx(); } catch (e) {}
-        setTimeout(startLoading, 300);
+        // 点击反馈音效
+        playLoadingTick();
+        // 按钮淡出
+        readyBtn.classList.add('fade-out');
+        // 按钮消失后显示加载容器并启动进度条
+        setTimeout(function () {
+          readyBtnWrapper.style.display = 'none';
+          loadingContainer.style.display = 'block';
+          startLoading();
+        }, 500);
       });
-
-      // 如果页面已经加载完成（DOMContentLoaded 已过），直接启动
-      if (document.readyState === 'complete') {
-        try { getAudioCtx(); } catch (e) {}
-        setTimeout(startLoading, 300);
-      }
     })();
   </script>
 </body>
