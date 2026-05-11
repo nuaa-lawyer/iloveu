@@ -247,6 +247,48 @@
       50%      { opacity: 0.8; }
     }
 
+    /* ===== 收尾页跳转按钮 ===== */
+    .btn-end-wrapper {
+      text-align: center;
+      margin-top: 2.5rem;
+      padding-bottom: 1rem;
+    }
+
+    .btn-end {
+      font-family: 'Press Start 2P', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      font-size: clamp(10px, 1.8vw, 14px);
+      color: #5D4E5F;
+      background: linear-gradient(135deg, #F5E6F0, #F0E6EF, #FBE8F0);
+      border: 3px solid #C9B8D4;
+      padding: 14px 36px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4,
+        0 5px 0 #B8A0C0;
+      image-rendering: pixelated;
+      position: relative;
+      top: 0;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.5s ease;
+    }
+
+    .btn-end:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4,
+        0 7px 0 #B8A0C0;
+    }
+
+    .btn-end:active {
+      transform: translateY(3px);
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4,
+        0 2px 0 #B8A0C0;
+    }
+
     /* ===== 响应式 ===== */
     @media (max-width: 480px) {
       .page-content { padding: 1.5rem 1rem 3rem; }
@@ -316,6 +358,11 @@
       </div>
     </div>
 
+    <!-- 收尾页跳转按钮 -->
+    <div class="btn-end-wrapper">
+      <button class="btn-end" id="btnEnd">看完啦~</button>
+    </div>
+
   </div>
 
   <script>
@@ -324,7 +371,7 @@
          第三页：message.html 心里话信箱 JS
          功能：
            1. 延续流动像素方块背景（低透明度）
-           2. 继续播放同一首纯代码合成背景音乐
+           2. 继续播放同一首背景音乐
            3. 留言提交/读取对接 Cloudflare Pages Functions
            4. 留言墙展示（时间倒序）
            5. 发送成功提示音效
@@ -344,10 +391,6 @@
 
       // ==================== 全局状态 ====================
       var audioCtx     = null;
-      var musicCtx     = null;
-      var musicNoteIdx = 0;
-      var musicTimer   = null;
-      var musicStarted = false;
       var isSending    = false; // 防重复提交
 
       // ==================== 音频工具函数 ====================
@@ -430,107 +473,42 @@
         } catch (e) {}
       }
 
-      // ==================== 背景音乐（与 main.html 同一旋律） ====================
+      // ==================== 背景音乐（本地MP3） ====================
 
-      var melodySequence = [
-        { freq: 329.63, harm: 261.63, dur: 2.0 },
-        { freq: 392.00, harm: 329.63, dur: 2.0 },
-        { freq: 440.00, harm: 349.23, dur: 2.0 },
-        { freq: 523.25, harm: 440.00, dur: 2.0 },
-        { freq: 440.00, harm: 349.23, dur: 2.0 },
-        { freq: 392.00, harm: 329.63, dur: 2.0 },
-        { freq: 329.63, harm: 261.63, dur: 2.0 },
-        { freq: 293.66, harm: 220.00, dur: 2.0 },
-        { freq: 261.63, harm: 220.00, dur: 2.0 },
-        { freq: 293.66, harm: 233.08, dur: 2.0 },
-        { freq: 329.63, harm: 261.63, dur: 2.0 },
-        { freq: 392.00, harm: 329.63, dur: 2.0 },
-        { freq: 440.00, harm: 349.23, dur: 2.0 },
-        { freq: 392.00, harm: 329.63, dur: 2.0 },
-        { freq: 329.63, harm: 261.63, dur: 2.0 },
-        { freq: 293.66, harm: 220.00, dur: 2.0 },
-        { freq: 261.63, harm: 196.00, dur: 3.0 },
-      ];
+      var bgmAudio = null;
 
-      function playMusicNote(freq, harmFreq, startTime, duration) {
-        if (!musicCtx) return;
-        var attack = 0.15, release = 0.25;
-        // 主旋律
-        var osc1 = musicCtx.createOscillator();
-        var gain1 = musicCtx.createGain();
-        osc1.type = 'triangle';
-        osc1.frequency.value = freq;
-        gain1.gain.setValueAtTime(0, startTime);
-        gain1.gain.linearRampToValueAtTime(0.07, startTime + attack);
-        gain1.gain.setValueAtTime(0.07, startTime + duration - release);
-        gain1.gain.linearRampToValueAtTime(0, startTime + duration);
-        osc1.connect(gain1);
-        gain1.connect(musicCtx.destination);
-        osc1.start(startTime);
-        osc1.stop(startTime + duration);
-        // 和声
-        var osc2 = musicCtx.createOscillator();
-        var gain2 = musicCtx.createGain();
-        osc2.type = 'triangle';
-        osc2.frequency.value = harmFreq;
-        gain2.gain.setValueAtTime(0, startTime);
-        gain2.gain.linearRampToValueAtTime(0.035, startTime + attack);
-        gain2.gain.setValueAtTime(0.035, startTime + duration - release);
-        gain2.gain.linearRampToValueAtTime(0, startTime + duration);
-        osc2.connect(gain2);
-        gain2.connect(musicCtx.destination);
-        osc2.start(startTime);
-        osc2.stop(startTime + duration);
+      function initBgm() {
+        bgmAudio = new Audio('/music/bgm.mp3');
+        bgmAudio.loop = true;
+        bgmAudio.volume = 0.35;
+
+        var savedTime = parseFloat(sessionStorage.getItem('px_bgm_time')) || 0;
+        bgmAudio.addEventListener('loadedmetadata', function () {
+          if (savedTime > 0 && savedTime < bgmAudio.duration) {
+            bgmAudio.currentTime = savedTime;
+          }
+        });
+
+        // 定期保存播放位置
+        setInterval(function () {
+          if (bgmAudio && !bgmAudio.paused) {
+            sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+          }
+        }, 3000);
+
+        // 页面离开时保存
+        window.addEventListener('beforeunload', function () {
+          if (bgmAudio && !bgmAudio.paused) {
+            sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+            sessionStorage.setItem('px_bgm_playing', '1');
+          }
+        });
       }
 
-      /**
-       * 从指定位置恢复背景音乐
-       */
-      function resumeMusic(startIdx, timeOffset) {
-        if (musicStarted) return;
-        musicStarted = true;
-
-        try {
-          var AC = window.AudioContext || window.webkitAudioContext;
-          musicCtx = new AC();
-        } catch (e) { return; }
-
-        startIdx = startIdx || 0;
-        timeOffset = timeOffset || 0;
-
-        function scheduleLoop(fromIdx, offset) {
-          if (!musicCtx) return;
-          var now = musicCtx.currentTime;
-          var cursorTime = now - offset;
-
-          for (var i = 0; i < melodySequence.length; i++) {
-            musicNoteIdx = (fromIdx + i) % melodySequence.length;
-            var note = melodySequence[musicNoteIdx];
-            var noteStart;
-
-            if (i === 0) {
-              noteStart = now;
-              var remaining = note.dur - offset;
-              if (remaining > 0.05) {
-                playMusicNote(note.freq, note.harm, noteStart, remaining);
-              }
-              cursorTime = now + remaining;
-            } else {
-              noteStart = cursorTime;
-              playMusicNote(note.freq, note.harm, noteStart, note.dur);
-              cursorTime += note.dur;
-            }
-          }
-
-          var timeUntilNextLoop = (cursorTime - musicCtx.currentTime) * 1000;
-          if (timeUntilNextLoop < 50) timeUntilNextLoop = 50;
-
-          musicTimer = setTimeout(function () {
-            scheduleLoop(0, 0);
-          }, timeUntilNextLoop - 30);
+      function playBgm() {
+        if (bgmAudio && bgmAudio.paused) {
+          bgmAudio.play().catch(function () {});
         }
-
-        scheduleLoop(startIdx, timeOffset);
       }
 
       // ==================== 像素方块流动背景 ====================
@@ -722,6 +700,9 @@
       // ==================== 页面初始化 ====================
 
       function init() {
+        // 初始化背景音乐
+        initBgm();
+
         // 初始化背景
         resizeCanvas();
         initSquares();
@@ -732,18 +713,12 @@
           initSquares();
         });
 
-        // 尝试恢复背景音乐（从 sessionStorage 读取上一页保存的状态）
-        if (sessionStorage.getItem('px_music_active') === '1') {
-          var savedIdx = parseInt(sessionStorage.getItem('px_music_noteIdx')) || 0;
-          resumeMusic(savedIdx, 0);
-        }
+        // 尝试恢复背景音乐
+        playBgm();
 
         // 首次交互时尝试启动音乐（处理自动播放限制）
         document.addEventListener('click', function tryMusic() {
-          if (!musicStarted && sessionStorage.getItem('px_music_active') === '1') {
-            var idx = parseInt(sessionStorage.getItem('px_music_noteIdx')) || 0;
-            resumeMusic(idx, 0);
-          }
+          playBgm();
         }, { once: false });
 
         // 按钮事件
@@ -756,6 +731,17 @@
             return;
           }
           sendMessage(content);
+        });
+
+        // 收尾页跳转按钮
+        var btnEnd = document.getElementById('btnEnd');
+        btnEnd.addEventListener('mouseenter', playHoverSound);
+        btnEnd.addEventListener('click', function () {
+          playClickSound();
+          document.body.classList.add('fade-out');
+          setTimeout(function () {
+            window.location.href = 'end.html';
+          }, 600);
         });
 
         // 回车发送

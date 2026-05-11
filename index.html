@@ -181,6 +181,22 @@
          功能：模拟进度条加载 + 纯代码合成加载音效 + 自动跳转
          ================================================================ */
 
+      // ==================== 背景音乐（本地MP3） ====================
+      var bgmAudio = null;
+
+      setInterval(function () {
+        if (bgmAudio && !bgmAudio.paused) {
+          sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+        }
+      }, 3000);
+
+      window.addEventListener('beforeunload', function () {
+        if (bgmAudio && !bgmAudio.paused) {
+          sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+          sessionStorage.setItem('px_bgm_playing', '1');
+        }
+      });
+
       // ----- 获取 DOM 元素 -----
       var progressBar = document.getElementById('progressBar');
 
@@ -311,6 +327,13 @@
       readyBtn.addEventListener('click', function () {
         // 激活音频上下文（用户手势解锁浏览器自动播放限制）
         getAudioCtx();
+        // 初始化并播放背景音乐
+        if (!bgmAudio) {
+          bgmAudio = new Audio('/music/bgm.mp3');
+          bgmAudio.loop = true;
+          bgmAudio.volume = 0.35;
+          bgmAudio.play().catch(function () {});
+        }
         // 点击反馈音效
         playLoadingTick();
         // 按钮淡出
