@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>加载中…</title>
+  <!-- 像素风字体：Press Start 2P（英文）+ 系统中文回退 -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* ===== 全局重置 & 基础样式 ===== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      /* 暖奶白底色，低饱和温柔 */
+      background: #FFF8F6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      /* 页面淡入动画 */
+      animation: pageFadeIn 0.8s ease;
+      transition: opacity 0.6s ease;
+    }
+
+    /* 离开页面时的淡出 */
+    body.fade-out { opacity: 0; }
+
+    @keyframes pageFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== 加载容器 ===== */
+    .loading-container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    /* ===== 加载文案 ===== */
+    .loading-text {
+      color: #5D4E5F;
+      font-size: clamp(12px, 2.5vw, 16px);
+      letter-spacing: 2px;
+      margin-bottom: 2.5rem;
+      /* 中文回退字体 */
+      font-family: 'Press Start 2P', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      /* 文字轻微呼吸 */
+      animation: textBreath 2s ease-in-out infinite;
+    }
+
+    @keyframes textBreath {
+      0%, 100% { opacity: 0.7; }
+      50%      { opacity: 1; }
+    }
+
+    /* ===== 像素风进度条容器 ===== */
+    .progress-bar-outer {
+      width: 100%;
+      max-width: 360px;
+      height: 14px;
+      margin: 0 auto;
+      background: #F0E6EF;
+      border: 3px solid #C9B8D4;
+      /* 像素风锯齿边框效果 */
+      box-shadow:
+        0 0 0 2px #FFF8F6,
+        0 0 0 5px #C9B8D4;
+      image-rendering: pixelated;
+      position: relative;
+    }
+
+    /* ===== 进度条填充 ===== */
+    .progress-bar-inner {
+      height: 100%;
+      width: 0%;
+      /* 柔紫渐变 */
+      background: linear-gradient(90deg, #D4A5B9, #B8A9C9, #C9B8D4);
+      transition: width 0.1s linear;
+      position: relative;
+    }
+
+    /* 进度条像素纹理覆盖 */
+    .progress-bar-inner::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 3px,
+        rgba(255,255,255,0.15) 3px,
+        rgba(255,255,255,0.15) 6px
+      );
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 480px) {
+      .loading-text { font-size: 12px; letter-spacing: 1px; }
+      .progress-bar-outer { height: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="loading-container">
+    <!-- 加载文案 -->
+    <p class="loading-text">与你并肩加载中</p>
+
+    <!-- 像素进度条 -->
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="progressBar"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      /* ================================================================
+         第一页：加载过渡页 JS
+         功能：模拟进度条加载 + 纯代码合成加载音效 + 自动跳转
+         ================================================================ */
+
+      // ----- 获取 DOM 元素 -----
+      var progressBar = document.getElementById('progressBar');
+
+      // ----- 初始化音频上下文（延迟初始化，等用户首次交互后激活） -----
+      var audioCtx = null;
+
+      /**
+       * 获取或创建 AudioContext
+       * 浏览器要求 AudioContext 在用户手势后创建才能正常播放
+       */
+      function getAudioCtx() {
+        if (!audioCtx) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AC();
+        }
+        // 如果 context 被浏览器挂起则恢复
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      /**
+       * 播放加载进度细碎音效（纯代码合成）
+       * 原理：生成超短白噪声 → 带通滤波器 → 快速衰减包络
+       */
+      function playLoadingTick() {
+        try {
+          var ctx = getAudioCtx();
+          var now = ctx.currentTime;
+
+          // 生成 30ms 白噪声 buffer
+          var sampleRate = ctx.sampleRate;
+          var duration = 0.03;
+          var bufferSize = Math.floor(sampleRate * duration);
+          var buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+          var data = buffer.getChannelData(0);
+
+          // 填充白噪声 + 指数衰减包络
+          for (var i = 0; i < bufferSize; i++) {
+            var t = i / sampleRate;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t / 0.005);
+          }
+
+          // 创建音源节点
+          var source = ctx.createBufferSource();
+          source.buffer = buffer;
+
+          // 带通滤波器，模拟复古芯片音色
+          var filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 1500 + Math.random() * 2000; // 频率微调，每次略有不同
+          filter.Q.value = 0.5;
+
+          // 音量控制：超低音量，柔和碎响
+          var gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.015, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+          // 连接节点链：source → filter → gain → 输出
+          source.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          source.start(now);
+          source.stop(now + duration);
+        } catch (e) {
+          // 静默处理音频错误，不影响页面功能
+        }
+      }
+
+      /**
+       * 开始进度条加载动画
+       */
+      function startLoading() {
+        var progress = 0;
+        var tickInterval = 0;
+        var totalDuration = 3500; // 总加载时间约 3.5 秒
+        var startTime = Date.now();
+
+        function updateProgress() {
+          var elapsed = Date.now() - startTime;
+          // 使用缓动曲线：先快后慢，模拟真实加载
+          var rawProgress = Math.min(elapsed / totalDuration, 1);
+          // easeOutQuad 缓动：让结尾更平滑
+          var eased = 1 - (1 - rawProgress) * (1 - rawProgress);
+          progress = Math.floor(eased * 100);
+
+          progressBar.style.width = progress + '%';
+
+          // 每推进一定进度播放 tick 音效
+          if (progress > tickInterval && progress < 100) {
+            playLoadingTick();
+            tickInterval = progress + 3 + Math.floor(Math.random() * 5);
+          }
+
+          if (progress < 100) {
+            // 动态间隔，前期快后期稍慢
+            var delay = 40 + Math.random() * 30;
+            requestAnimationFrame(function () {
+              setTimeout(updateProgress, delay);
+            });
+          } else {
+            // 加载完毕
+            progressBar.style.width = '100%';
+            playLoadingTick();
+
+            // 短暂停留后淡出跳转
+            setTimeout(function () {
+              document.body.classList.add('fade-out');
+              setTimeout(function () {
+                window.location.href = 'main.html';
+              }, 600);
+            }, 500);
+          }
+        }
+
+        // 初始 tick
+        playLoadingTick();
+        updateProgress();
+      }
+
+      // ----- 页面就绪后启动 -----
+      // 先尝试激活音频上下文（某些浏览器需要用户手势）
+      // 这里在加载阶段使用交互来激活
+      document.addEventListener('click', function activate() {
+        getAudioCtx();
+      }, { once: true });
+
+      // 页面加载完成后启动进度条
+      window.addEventListener('load', function () {
+        // 尝试提前激活音频
+        try { getAudioCtx(); } catch (e) {}
+        setTimeout(startLoading, 300);
+      });
+
+      // 如果页面已经加载完成（DOMContentLoaded 已过），直接启动
+      if (document.readyState === 'complete') {
+        try { getAudioCtx(); } catch (e) {}
+        setTimeout(startLoading, 300);
+      }
+    })();
+  </script>
+</body>
+</html>

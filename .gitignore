@@ -1,0 +1,52 @@
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+npm-debug.log*
+
+# 依赖目录
+node_modules/
+
+# 构建产物
+dist/
+build/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 操作系统
+# Windows
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+# Linux
+*~
+.directory
+.Trash-*

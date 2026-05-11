@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>For You</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       第二页：main.html 主视觉告白页 CSS
+       配色：莫兰迪暖奶白 + 浅粉浅紫，低饱和不刺眼
+       ================================================================ */
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #FFF8F6;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'VT323', 'Courier New', monospace;
+      cursor: none; /* 隐藏默认鼠标，用自定义爱心替代 */
+      /* 页面淡入 */
+      animation: pageFadeIn 0.8s ease;
+      transition: opacity 0.6s ease;
+    }
+
+    body.fade-out { opacity: 0; }
+
+    @keyframes pageFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ===== 背景画布（像素方块流动） ===== */
+    #bgCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ===== 主内容层 ===== */
+    .main-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ===== 第一行文案 "I fancy you" ===== */
+    .line-1 {
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      font-size: clamp(20px, 5vw, 40px);
+      color: #5D4E5F;
+      letter-spacing: 3px;
+      min-height: 1.5em;
+      margin-bottom: 0.8rem;
+      /* 打字光标闪烁效果（打字期间隐藏，结束后显示） */
+      position: relative;
+    }
+
+    /* ===== 像素爱心（在 I fancy you 后面） ===== */
+    .pixel-heart {
+      display: none; /* 默认隐藏，打字结束后显示 */
+      width: clamp(32px, 6vw, 48px);
+      height: clamp(32px, 6vw, 48px);
+      margin: 0 auto 1rem;
+      image-rendering: pixelated;
+      /* 呼吸缩放动画 */
+      animation: heartBreath 2s ease-in-out infinite;
+    }
+
+    @keyframes heartBreath {
+      0%, 100% { transform: scale(1); }
+      30%      { transform: scale(1.08); }
+      50%      { transform: scale(1); }
+      70%      { transform: scale(1.05); }
+    }
+
+    /* ===== 第二行文案（小字） ===== */
+    .line-2 {
+      font-family: 'VT323', 'Courier New', monospace;
+      font-size: clamp(14px, 2.5vw, 20px);
+      color: #8B7D8E;
+      letter-spacing: 1px;
+      min-height: 1.5em;
+      max-width: 600px;
+      line-height: 1.6;
+      margin-bottom: 3rem;
+    }
+
+    /* ===== 打字光标闪烁 ===== */
+    .cursor-blink::after {
+      content: '█';
+      animation: blink 0.7s step-end infinite;
+      color: #D4A5B9;
+      font-size: 0.8em;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* ===== continue 按钮 ===== */
+    .btn-continue {
+      /* 像素风按钮 */
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      font-size: clamp(10px, 1.8vw, 14px);
+      color: #FFF8F6;
+      background: #B8A9C9;
+      border: none;
+      padding: 14px 40px;
+      cursor: none;
+      letter-spacing: 3px;
+      /* 像素锯齿边框 */
+      box-shadow:
+        0 0 0 3px #FFF8F6,
+        0 0 0 6px #B8A9C9,
+        0 6px 0 #9B8BAA;
+      transition: all 0.15s ease;
+      position: relative;
+      top: 0;
+      opacity: 0;
+      transform: translateY(20px);
+      /* 打字结束后淡入显示 */
+      transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.15s ease, top 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-continue.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 按钮悬浮 */
+    .btn-continue:hover {
+      background: #C9B8D4;
+      box-shadow:
+        0 0 0 3px #FFF8F6,
+        0 0 0 6px #C9B8D4,
+        0 4px 0 #A894B5;
+      top: 2px;
+    }
+
+    /* 按钮按下 */
+    .btn-continue:active {
+      top: 6px;
+      box-shadow:
+        0 0 0 3px #FFF8F6,
+        0 0 0 6px #B8A9C9,
+        0 0 0 #9B8BAA;
+    }
+
+    /* ===== 鼠标跟随爱心容器 ===== */
+    .cursor-heart {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      width: 24px;
+      height: 24px;
+      /* 使用 Canvas 绘制，此处为容器占位 */
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+    .cursor-heart.visible { opacity: 1; }
+
+    /* ===== 友情提示小字 ===== */
+    .hint-text {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+      font-family: 'VT323', 'Courier New', monospace;
+      font-size: 12px;
+      color: #C9B8D4;
+      letter-spacing: 2px;
+      animation: textBreath 2.5s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes textBreath {
+      0%, 100% { opacity: 0.4; }
+      50%      { opacity: 0.8; }
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 480px) {
+      .line-1 { font-size: 18px; letter-spacing: 2px; }
+      .line-2 { font-size: 13px; }
+      .btn-continue { padding: 12px 28px; font-size: 10px; letter-spacing: 2px; }
+      .hint-text { font-size: 10px; bottom: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 像素方块流动背景 -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- 主内容 -->
+  <div class="main-content">
+    <!-- 第一行：I fancy you（打字机逐字填充） -->
+    <div class="line-1 cursor-blink" id="line1"></div>
+
+    <!-- 像素爱心（Canvas 绘制） -->
+    <canvas class="pixel-heart" id="pixelHeart" width="48" height="48"></canvas>
+
+    <!-- 第二行：小字告白文案 -->
+    <div class="line-2" id="line2"></div>
+
+    <!-- continue 按钮 -->
+    <button class="btn-continue" id="btnContinue">continue</button>
+  </div>
+
+  <!-- 鼠标跟随爱心 -->
+  <canvas class="cursor-heart" id="cursorHeart" width="24" height="24"></canvas>
+
+  <!-- 底部氛围提示 -->
+  <p class="hint-text">click anywhere to begin</p>
+
+  <script>
+    (function () {
+      /* ================================================================
+         第二页：main.html 主视觉告白页 JS
+         功能：
+           1. 像素方块流动背景（Canvas）
+           2. 纯代码合成背景音乐（Web Audio API）
+           3. 复古打字机效果 + 按键音效
+           4. 像素爱心呼吸动画
+           5. 鼠标跟随像素爱心
+           6. continue 按钮交互 + 页面跳转
+         ================================================================ */
+
+      // ==================== DOM 元素 ====================
+      var bgCanvas       = document.getElementById('bgCanvas');
+      var bgCtx          = bgCanvas.getContext('2d');
+      var line1El        = document.getElementById('line1');
+      var line2El        = document.getElementById('line2');
+      var pixelHeartEl   = document.getElementById('pixelHeart');
+      var heartCtx       = pixelHeartEl.getContext('2d');
+      var btnContinue    = document.getElementById('btnContinue');
+      var cursorHeartEl  = document.getElementById('cursorHeart');
+      var cursorCtx      = cursorHeartEl.getContext('2d');
+      var hintText       = document.querySelector('.hint-text');
+
+      // ==================== 全局状态 ====================
+      var audioCtx       = null;  // 音效 AudioContext
+      var musicCtx       = null;  // 背景音乐专用 AudioContext
+      var musicNoteIdx   = 0;     // 当前旋律音符索引
+      var musicTimer     = null;  // 音乐调度定时器
+      var musicStarted   = false; // 音乐是否已启动
+      var typingDone     = false; // 打字是否完成
+      var mouseX = 0, mouseY = 0; // 鼠标位置
+
+      // ==================== 音频工具函数 ====================
+
+      /** 获取或创建音效 AudioContext */
+      function getAudioCtx() {
+        if (!audioCtx) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AC();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+      }
+
+      /**
+       * 播放打字机按键音效（纯 JS 合成）
+       * 原理：超短白噪声 → 带通滤波 → 快速衰减包络 → 模拟复古机械按键声
+       */
+      function playTypeSound() {
+        try {
+          var ctx = getAudioCtx();
+          var now = ctx.currentTime;
+          var duration = 0.04;
+          var sampleRate = ctx.sampleRate;
+          var bufferSize = Math.floor(sampleRate * duration);
+          var buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+          var data = buffer.getChannelData(0);
+
+          // 白噪声 + 指数衰减
+          for (var i = 0; i < bufferSize; i++) {
+            var t = i / sampleRate;
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t / 0.008);
+          }
+
+          var source = ctx.createBufferSource();
+          source.buffer = buffer;
+
+          // 带通滤波器（模拟不同键位音高差异）
+          var filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 1800 + Math.random() * 1200;
+          filter.Q.value = 0.6;
+
+          var gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.025, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+          source.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          source.start(now);
+          source.stop(now + duration);
+        } catch (e) { /* 静默处理 */ }
+      }
+
+      /**
+       * 播放按钮悬浮音效（轻柔正弦波短提示）
+       */
+      function playHoverSound() {
+        try {
+          var ctx = getAudioCtx();
+          var now = ctx.currentTime;
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.value = 880;
+
+          gain.gain.setValueAtTime(0.04, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } catch (e) {}
+      }
+
+      /**
+       * 播放按钮点击音效
+       */
+      function playClickSound() {
+        try {
+          var ctx = getAudioCtx();
+          var now = ctx.currentTime;
+
+          // 两个短促正弦波叠加，制造更丰富的像素音色
+          [660, 880].forEach(function (freq, i) {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            var start = now + i * 0.04;
+            gain.gain.setValueAtTime(0.05, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.1);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.1);
+          });
+        } catch (e) {}
+      }
+
+      // ==================== 背景音乐（纯 JS 合成） ====================
+
+      /**
+       * 背景音乐旋律定义
+       * 使用五声音阶（C D E G A），温柔梦幻，无限循环
+       * 每个音符包含：主频率、和声频率、持续时长（秒）
+       */
+      var melodySequence = [
+        { freq: 329.63, harm: 261.63, dur: 2.0 },  // E4 + C4
+        { freq: 392.00, harm: 329.63, dur: 2.0 },  // G4 + E4
+        { freq: 440.00, harm: 349.23, dur: 2.0 },  // A4 + F4
+        { freq: 523.25, harm: 440.00, dur: 2.0 },  // C5 + A4
+        { freq: 440.00, harm: 349.23, dur: 2.0 },  // A4 + F4
+        { freq: 392.00, harm: 329.63, dur: 2.0 },  // G4 + E4
+        { freq: 329.63, harm: 261.63, dur: 2.0 },  // E4 + C4
+        { freq: 293.66, harm: 220.00, dur: 2.0 },  // D4 + A3
+        { freq: 261.63, harm: 220.00, dur: 2.0 },  // C4 + A3
+        { freq: 293.66, harm: 233.08, dur: 2.0 },  // D4 + Bb3
+        { freq: 329.63, harm: 261.63, dur: 2.0 },  // E4 + C4
+        { freq: 392.00, harm: 329.63, dur: 2.0 },  // G4 + E4
+        { freq: 440.00, harm: 349.23, dur: 2.0 },  // A4 + F4
+        { freq: 392.00, harm: 329.63, dur: 2.0 },  // G4 + E4
+        { freq: 329.63, harm: 261.63, dur: 2.0 },  // E4 + C4
+        { freq: 293.66, harm: 220.00, dur: 2.0 },  // D4 + A3
+        { freq: 261.63, harm: 196.00, dur: 3.0 },  // C4 + G3（结尾稍长，制造呼吸感）
+      ];
+
+      /** 计算旋律总时长（秒） */
+      function getMelodyTotalDuration() {
+        var total = 0;
+        melodySequence.forEach(function (n) { total += n.dur; });
+        return total;
+      }
+
+      /**
+       * 播放单个音符（三角波，柔和）
+       * @param {number} freq      - 主频率
+       * @param {number} harmFreq - 和声频率
+       * @param {number} startTime - AudioContext 时间
+       * @param {number} duration  - 持续时长
+       */
+      function playMusicNote(freq, harmFreq, startTime, duration) {
+        if (!musicCtx) return;
+        var attack = 0.15;
+        var release = 0.25;
+
+        // 主旋律
+        var osc1 = musicCtx.createOscillator();
+        var gain1 = musicCtx.createGain();
+        osc1.type = 'triangle';
+        osc1.frequency.value = freq;
+        gain1.gain.setValueAtTime(0, startTime);
+        gain1.gain.linearRampToValueAtTime(0.07, startTime + attack);
+        gain1.gain.setValueAtTime(0.07, startTime + duration - release);
+        gain1.gain.linearRampToValueAtTime(0, startTime + duration);
+        osc1.connect(gain1);
+        gain1.connect(musicCtx.destination);
+        osc1.start(startTime);
+        osc1.stop(startTime + duration);
+
+        // 和声（更低音量）
+        var osc2 = musicCtx.createOscillator();
+        var gain2 = musicCtx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.value = harmFreq;
+        gain2.gain.setValueAtTime(0, startTime);
+        gain2.gain.linearRampToValueAtTime(0.035, startTime + attack);
+        gain2.gain.setValueAtTime(0.035, startTime + duration - release);
+        gain2.gain.linearRampToValueAtTime(0, startTime + duration);
+        osc2.connect(gain2);
+        gain2.connect(musicCtx.destination);
+        osc2.start(startTime);
+        osc2.stop(startTime + duration);
+      }
+
+      /**
+       * 开始播放背景音乐循环
+       * @param {number} startIdx    - 从第几个音符开始（用于跨页续播）
+       * @param {number} timeOffset  - 当前音符已播放的秒数（用于跨页续播）
+       */
+      function startMusic(startIdx, timeOffset) {
+        if (musicStarted) return;
+        musicStarted = true;
+
+        try {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          musicCtx = new AC();
+        } catch (e) {
+          return;
+        }
+
+        startIdx = startIdx || 0;
+        timeOffset = timeOffset || 0;
+
+        /**
+         * 调度一整轮旋律循环
+         */
+        function scheduleLoop(fromIdx, offset) {
+          if (!musicCtx) return;
+          var now = musicCtx.currentTime;
+          var cursorTime = now - offset; // 虚拟的时间游标
+
+          // 调度从 fromIdx 开始到旋律末尾的所有音符
+          for (var i = 0; i < melodySequence.length; i++) {
+            musicNoteIdx = (fromIdx + i) % melodySequence.length;
+            var note = melodySequence[musicNoteIdx];
+            var noteStart;
+
+            if (i === 0) {
+              // 第一个音符从中途开始
+              noteStart = now;
+              var remaining = note.dur - offset;
+              if (remaining > 0.05) {
+                playMusicNote(note.freq, note.harm, noteStart, remaining);
+              }
+              cursorTime = now + remaining;
+            } else {
+              noteStart = cursorTime;
+              playMusicNote(note.freq, note.harm, noteStart, note.dur);
+              cursorTime += note.dur;
+            }
+          }
+
+          // 计算距离下一轮循环还有多久
+          var timeUntilNextLoop = (cursorTime - musicCtx.currentTime) * 1000;
+          if (timeUntilNextLoop < 50) timeUntilNextLoop = 50;
+
+          // 定时下一轮
+          musicTimer = setTimeout(function () {
+            scheduleLoop(0, 0);
+          }, timeUntilNextLoop - 30);
+
+          // 定期保存进度到 sessionStorage（用于跨页续播）
+          saveMusicProgressInterval = setInterval(saveMusicProgress, 2000);
+        }
+
+        scheduleLoop(startIdx, timeOffset);
+
+        // 保存音乐已启动标记
+        sessionStorage.setItem('px_music_active', '1');
+      }
+
+      var saveMusicProgressInterval = null;
+
+      /** 保存当前音乐进度到 sessionStorage */
+      function saveMusicProgress() {
+        if (!musicCtx || !musicStarted) return;
+        sessionStorage.setItem('px_music_active', '1');
+        sessionStorage.setItem('px_music_noteIdx', musicNoteIdx);
+        // 简化：只记录音符索引，恢复时从头播放该音符
+      }
+
+      // ==================== 像素方块流动背景 ====================
+
+      /** 莫兰迪柔和配色 */
+      var squareColors = [
+        'rgba(255,209,220,0.25)', // 柔粉
+        'rgba(232,213,224,0.25)', // 淡紫
+        'rgba(212,229,247,0.22)', // 浅蓝
+        'rgba(212,237,218,0.22)', // 薄荷
+        'rgba(255,245,238,0.28)', // 暖奶白
+        'rgba(200,184,212,0.22)', // 莫兰迪紫
+        'rgba(245,215,210,0.25)', // 杏粉
+      ];
+
+      var squares = [];
+      var SQUARE_COUNT = 55;
+
+      /** 初始化方块数组 */
+      function initSquares() {
+        squares = [];
+        for (var i = 0; i < SQUARE_COUNT; i++) {
+          squares.push({
+            x: Math.random() * (bgCanvas.width || window.innerWidth),
+            y: Math.random() * (bgCanvas.height || window.innerHeight),
+            size: 6 + Math.random() * 10,      // 6-16px 小方块
+            speed: 0.15 + Math.random() * 0.4,  // 缓慢上升
+            color: squareColors[Math.floor(Math.random() * squareColors.length)],
+            opacity: 0.4 + Math.random() * 0.6,
+            wobble: Math.random() * Math.PI * 2, // 左右微摆相位
+            wobbleSpeed: 0.003 + Math.random() * 0.005,
+            wobbleAmp: 0.3 + Math.random() * 0.7,
+          });
+        }
+      }
+
+      /** 调整 Canvas 尺寸 */
+      function resizeCanvas() {
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+      }
+
+      /** 绘制一帧背景 */
+      function drawBgFrame() {
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+        squares.forEach(function (sq) {
+          // 更新位置
+          sq.y -= sq.speed;
+          sq.wobble += sq.wobbleSpeed;
+          var driftX = Math.sin(sq.wobble) * sq.wobbleAmp;
+          var drawX = sq.x + driftX;
+
+          // 超出顶部则重置到底部
+          if (sq.y < -sq.size) {
+            sq.y = bgCanvas.height + sq.size;
+            sq.x = Math.random() * bgCanvas.width;
+          }
+
+          // 绘制像素小方块
+          bgCtx.fillStyle = sq.color;
+          bgCtx.fillRect(Math.floor(drawX), Math.floor(sq.y), Math.floor(sq.size), Math.floor(sq.size));
+        });
+
+        requestAnimationFrame(drawBgFrame);
+      }
+
+      // ==================== 像素爱心绘制 ====================
+
+      /**
+       * 在指定 Canvas 上绘制像素爱心（8x8 网格）
+       * @param {CanvasRenderingContext2D} ctx
+       * @param {number} canvasW - Canvas 宽度
+       * @param {number} canvasH - Canvas 高度
+       * @param {string} color   - 填充颜色
+       */
+      function drawPixelHeart(ctx, canvasW, canvasH, color) {
+        var pixelSize = canvasW / 8;
+        // 8x8 像素爱心形状定义
+        var heartShape = [
+          [0,1,1,0,0,1,1,0],
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1],
+          [0,1,1,1,1,1,1,0],
+          [0,0,1,1,1,1,0,0],
+          [0,0,0,1,1,0,0,0],
+          [0,0,0,0,0,0,0,0],
+        ];
+
+        ctx.clearRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = color;
+
+        heartShape.forEach(function (row, y) {
+          row.forEach(function (cell, x) {
+            if (cell) {
+              ctx.fillRect(
+                Math.floor(x * pixelSize),
+                Math.floor(y * pixelSize),
+                Math.ceil(pixelSize),
+                Math.ceil(pixelSize)
+              );
+            }
+          });
+        });
+      }
+
+      /** 绘制页面中央的像素爱心 */
+      function drawMainHeart() {
+        drawPixelHeart(heartCtx, pixelHeartEl.width, pixelHeartEl.height, '#E8A0B4');
+      }
+
+      /** 绘制鼠标跟随爱心 */
+      function drawCursorHeart() {
+        drawPixelHeart(cursorCtx, cursorHeartEl.width, cursorHeartEl.height, '#E8A0B4');
+      }
+
+      // ==================== 打字机效果 ====================
+
+      var line1Text = 'I fancy you';
+      var line2Text = "I don't care who was before me, I just hope to be your last.";
+      var line1Idx = 0;
+      var line2Idx = 0;
+      var currentLine = 1; // 1 = 第一行，2 = 第二行
+
+      /** 打字：逐字显示 */
+      function typeNextChar() {
+        if (currentLine === 1) {
+          if (line1Idx < line1Text.length) {
+            line1El.textContent += line1Text[line1Idx];
+            // 空格不发音效
+            if (line1Text[line1Idx] !== ' ') playTypeSound();
+            line1Idx++;
+            // 第一行打字速度：100-160ms/字（偏慢）
+            setTimeout(typeNextChar, 100 + Math.random() * 60);
+          } else {
+            // 第一行打完 → 显示爱心 → 切换到第二行
+            pixelHeartEl.style.display = 'block';
+            drawMainHeart();
+            currentLine = 2;
+            line1El.classList.remove('cursor-blink');
+            line2El.classList.add('cursor-blink');
+            // 短暂停顿
+            setTimeout(typeNextChar, 700);
+          }
+        } else if (currentLine === 2) {
+          if (line2Idx < line2Text.length) {
+            line2El.textContent += line2Text[line2Idx];
+            if (line2Text[line2Idx] !== ' ') playTypeSound();
+            line2Idx++;
+            // 第二行稍快：60-100ms/字
+            setTimeout(typeNextChar, 60 + Math.random() * 40);
+          } else {
+            // 打字全部完成
+            line2El.classList.remove('cursor-blink');
+            typingDone = true;
+            // 显示 continue 按钮
+            btnContinue.classList.add('show');
+            // 隐藏提示文字
+            hintText.style.opacity = '0';
+            // 停止保存音乐进度（减少开销）
+            if (saveMusicProgressInterval) clearInterval(saveMusicProgressInterval);
+          }
+        }
+      }
+
+      // ==================== 鼠标跟随爱心 ====================
+
+      var cursorVisible = false;
+      var cursorShowTimer = null;
+
+      /** 更新鼠标爱心位置（带平滑过渡） */
+      function updateCursorHeart() {
+        // 直接定位（CSS transition 处理平滑）
+        cursorHeartEl.style.left = (mouseX - 12) + 'px';
+        cursorHeartEl.style.top  = (mouseY - 12) + 'px';
+        requestAnimationFrame(updateCursorHeart);
+      }
+
+      document.addEventListener('mousemove', function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (!cursorVisible) {
+          cursorVisible = true;
+          cursorHeartEl.classList.add('visible');
+        }
+        // 移动时重置消失计时器
+        clearTimeout(cursorShowTimer);
+        cursorShowTimer = setTimeout(function () {
+          cursorVisible = false;
+          cursorHeartEl.classList.remove('visible');
+        }, 2000);
+      });
+
+      // 触屏设备隐藏自定义光标
+      document.addEventListener('touchstart', function () {
+        cursorHeartEl.style.display = 'none';
+      });
+
+      // ==================== 页面初始化 ====================
+
+      /** 用户首次交互时激活一切（解决浏览器自动播放限制） */
+      function onFirstInteraction() {
+        // 启动背景音乐
+        startMusic(0, 0);
+
+        // 启动打字机
+        typeNextChar();
+
+        // 移除事件监听
+        document.removeEventListener('click', onFirstInteraction);
+        document.removeEventListener('touchstart', onFirstInteraction);
+        document.removeEventListener('keydown', onFirstInteraction);
+      }
+
+      /** 初始化页面 */
+      function init() {
+        // 初始化背景方块
+        resizeCanvas();
+        initSquares();
+        drawBgFrame();
+
+        // 绘制爱心
+        drawMainHeart();
+        drawCursorHeart();
+
+        // 窗口大小变化时重设 Canvas
+        window.addEventListener('resize', function () {
+          resizeCanvas();
+          initSquares();
+        });
+
+        // 按钮事件
+        btnContinue.addEventListener('mouseenter', function () {
+          if (typingDone) playHoverSound();
+        });
+        btnContinue.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (!typingDone) return;
+          playClickSound();
+
+          // 淡出跳转到第三页
+          document.body.classList.add('fade-out');
+          saveMusicProgress();
+          setTimeout(function () {
+            window.location.href = 'message.html';
+          }, 600);
+        });
+
+        // 首次交互启动音乐和打字机
+        document.addEventListener('click', onFirstInteraction);
+        document.addEventListener('touchstart', onFirstInteraction);
+        document.addEventListener('keydown', onFirstInteraction);
+
+        // 鼠标爱心位置更新
+        updateCursorHeart();
+
+        // 尝试自动播放（部分桌面浏览器允许）
+        try {
+          startMusic(0, 0);
+          typeNextChar();
+          // 如果成功则移除事件监听
+          if (musicStarted) {
+            document.removeEventListener('click', onFirstInteraction);
+            document.removeEventListener('touchstart', onFirstInteraction);
+            document.removeEventListener('keydown', onFirstInteraction);
+          }
+        } catch (e) {
+          // 自动播放被阻止，等用户交互
+        }
+
+        // 页面卸载前保存进度
+        window.addEventListener('beforeunload', saveMusicProgress);
+      }
+
+      // 启动
+      init();
+    })();
+  </script>
+</body>
+</html>
