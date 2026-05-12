@@ -255,13 +255,15 @@
 
       // ==================== 音频工具函数 ====================
 
-      /** 获取或创建音效 AudioContext */
+      /** 获取或创建音效 AudioContext（仅在用户手势后调用，避免抢占 BGM 音频焦点） */
       function getAudioCtx() {
         if (!audioCtx) {
           var AC = window.AudioContext || window.webkitAudioContext;
           audioCtx = new AC();
         }
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
         return audioCtx;
       }
 
@@ -361,31 +363,43 @@
       var bgmAudio = null;
 
       function initBgm() {
+        if (bgmAudio) return;
         bgmAudio = new Audio('/music/bgm.mp3');
         bgmAudio.loop = true;
         bgmAudio.volume = 0.35;
 
         var savedTime = parseFloat(sessionStorage.getItem('px_bgm_time')) || 0;
+        var wasUnlocked = sessionStorage.getItem('px_bgm_unlocked') === '1';
+
+        var seekDone = false;
         bgmAudio.addEventListener('loadedmetadata', function () {
-          if (savedTime > 0 && savedTime < bgmAudio.duration) {
+          if (!seekDone && savedTime > 0 && savedTime < bgmAudio.duration) {
             bgmAudio.currentTime = savedTime;
+            seekDone = true;
+          }
+        });
+        bgmAudio.addEventListener('canplay', function () {
+          if (!seekDone && savedTime > 0 && savedTime < bgmAudio.duration) {
+            bgmAudio.currentTime = savedTime;
+            seekDone = true;
           }
         });
 
-        // 定期保存播放位置
         setInterval(function () {
           if (bgmAudio && !bgmAudio.paused) {
             sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+            sessionStorage.setItem('px_bgm_playing', '1');
           }
-        }, 3000);
+        }, 1000);
 
-        // 页面离开时保存
         window.addEventListener('beforeunload', function () {
           if (bgmAudio && !bgmAudio.paused) {
             sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
             sessionStorage.setItem('px_bgm_playing', '1');
           }
         });
+
+        return wasUnlocked;
       }
 
       function playBgm() {
@@ -591,15 +605,15 @@
 
       // ==================== 页面初始化 ====================
 
-      /** 用户首次交互时激活一切（解决浏览器自动播放限制） */
+      /** 用户首次交互时激活音频（AudioContext + BGM），打字机已在页面加载时独立启动 */
       function onFirstInteraction() {
-        // 启动背景音乐
-        playBgm();
+        // 创建并解锁 AudioContext（与 BGM 同一手势内完成，避免后续打字音效抢占音频焦点）
+        getAudioCtx();
+        // 启动/续播背景音乐
+        if (bgmAudio && bgmAudio.paused) {
+          bgmAudio.play().catch(function () {});
+        }
 
-        // 启动打字机
-        typeNextChar();
-
-        // 移除事件监听
         document.removeEventListener('click', onFirstInteraction);
         document.removeEventListener('touchstart', onFirstInteraction);
         document.removeEventListener('keydown', onFirstInteraction);
@@ -607,6 +621,9 @@
 
       /** 初始化页面 */
       function init() {
+        // 初始化背景音乐（创建 Audio 实例，读取断点位置）
+        var wasUnlocked = initBgm();
+
         // 初始化背景方块
         resizeCanvas();
         initSquares();
@@ -638,30 +655,23 @@
           }, 600);
         });
 
-        // 首次交互启动音乐和打字机
-        document.addEventListener('click', onFirstInteraction);
-        document.addEventListener('touchstart', onFirstInteraction);
-        document.addEventListener('keydown', onFirstInteraction);
-
         // 鼠标爱心位置更新
         updateCursorHeart();
 
-        // 尝试自动播放（部分桌面浏览器允许）
-        try {
+        // 打字机文本动画立即启动（不依赖 BGM，不依赖用户交互）
+        typeNextChar();
+
+        // 尝试自动续播 BGM（桌面浏览器在已解锁后通常允许）
+        if (wasUnlocked) {
           playBgm();
-          typeNextChar();
-          // 如果成功则移除事件监听
-          if (bgmAudio && !bgmAudio.paused) {
-            document.removeEventListener('click', onFirstInteraction);
-            document.removeEventListener('touchstart', onFirstInteraction);
-            document.removeEventListener('keydown', onFirstInteraction);
-          }
-        } catch (e) {
-          // 自动播放被阻止，等用户交互
         }
 
-        // 初始化背景音乐
-        initBgm();
+        // 如果 BGM 未能自动播放，则在首次交互时启动
+        if (!bgmAudio || bgmAudio.paused) {
+          document.addEventListener('click', onFirstInteraction);
+          document.addEventListener('touchstart', onFirstInteraction);
+          document.addEventListener('keydown', onFirstInteraction);
+        }
       }
 
       // 启动

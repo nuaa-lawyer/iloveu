@@ -184,11 +184,13 @@
       // ==================== 背景音乐（本地MP3） ====================
       var bgmAudio = null;
 
+      // 每隔 1 秒保存播放位置，保证跨页面最小衔接间隙
       setInterval(function () {
         if (bgmAudio && !bgmAudio.paused) {
           sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+          sessionStorage.setItem('px_bgm_playing', '1');
         }
-      }, 3000);
+      }, 1000);
 
       window.addEventListener('beforeunload', function () {
         if (bgmAudio && !bgmAudio.paused) {
@@ -327,12 +329,15 @@
       readyBtn.addEventListener('click', function () {
         // 激活音频上下文（用户手势解锁浏览器自动播放限制）
         getAudioCtx();
-        // 初始化并播放背景音乐
+        // 初始化并播放背景音乐（全局唯一常驻音频实例）
         if (!bgmAudio) {
           bgmAudio = new Audio('/music/bgm.mp3');
           bgmAudio.loop = true;
           bgmAudio.volume = 0.35;
-          bgmAudio.play().catch(function () {});
+          bgmAudio.play().then(function () {
+            sessionStorage.setItem('px_bgm_unlocked', '1');
+            sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+          }).catch(function () {});
         }
         // 点击反馈音效
         playLoadingTick();

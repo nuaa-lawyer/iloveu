@@ -67,6 +67,11 @@
       color: #5D4E5F;
       letter-spacing: 3px;
       line-height: 2;
+      /* 像素风格轻微阴影，与全站低饱和温柔色系统一 */
+      text-shadow:
+        1px 1px 0 rgba(200,184,212,0.35),
+        -1px -1px 0 rgba(255,248,246,0.25);
+      image-rendering: pixelated;
       animation: textBreath 3s ease-in-out infinite;
     }
 
@@ -109,22 +114,34 @@
       var bgmAudio = null;
 
       function initBgm() {
+        if (bgmAudio) return;
         bgmAudio = new Audio('/music/bgm.mp3');
         bgmAudio.loop = true;
         bgmAudio.volume = 0.35;
 
         var savedTime = parseFloat(sessionStorage.getItem('px_bgm_time')) || 0;
+        var wasUnlocked = sessionStorage.getItem('px_bgm_unlocked') === '1';
+
+        var seekDone = false;
         bgmAudio.addEventListener('loadedmetadata', function () {
-          if (savedTime > 0 && savedTime < bgmAudio.duration) {
+          if (!seekDone && savedTime > 0 && savedTime < bgmAudio.duration) {
             bgmAudio.currentTime = savedTime;
+            seekDone = true;
+          }
+        });
+        bgmAudio.addEventListener('canplay', function () {
+          if (!seekDone && savedTime > 0 && savedTime < bgmAudio.duration) {
+            bgmAudio.currentTime = savedTime;
+            seekDone = true;
           }
         });
 
         setInterval(function () {
           if (bgmAudio && !bgmAudio.paused) {
             sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+            sessionStorage.setItem('px_bgm_playing', '1');
           }
-        }, 3000);
+        }, 1000);
 
         window.addEventListener('beforeunload', function () {
           if (bgmAudio && !bgmAudio.paused) {
@@ -132,6 +149,8 @@
             sessionStorage.setItem('px_bgm_playing', '1');
           }
         });
+
+        return wasUnlocked;
       }
 
       function playBgm() {
@@ -216,20 +235,21 @@
         var cx = fwCanvas.width * 0.15 + Math.random() * fwCanvas.width * 0.7;
         var cy = fwCanvas.height * 0.25 + Math.random() * fwCanvas.height * 0.4;
         var color = fireworkColors[Math.floor(Math.random() * fireworkColors.length)];
-        var count = 20 + Math.floor(Math.random() * 16);
+        // 略减少粒子数，更柔和
+        var count = 18 + Math.floor(Math.random() * 12);
 
         for (var i = 0; i < count; i++) {
           var angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.35;
-          var speed = 0.6 + Math.random() * 2.2;
+          var speed = 0.6 + Math.random() * 2.0;
           particles.push({
             x: cx,
             y: cy,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
-            size: 2 + Math.random() * 4,
+            size: 2 + Math.random() * 3,
             color: color,
             life: 1,
-            decay: 0.005 + Math.random() * 0.012,
+            decay: 0.006 + Math.random() * 0.010,
           });
         }
       }
@@ -249,7 +269,8 @@
             continue;
           }
 
-          fwCtx.globalAlpha = p.life * 0.55;
+          // 透明度降低，效果更柔和不浮夸
+          fwCtx.globalAlpha = p.life * 0.45;
           fwCtx.fillStyle = p.color;
           fwCtx.fillRect(Math.floor(p.x), Math.floor(p.y), Math.floor(p.size), Math.floor(p.size));
         }
@@ -259,15 +280,24 @@
       }
 
       function launchFireworks() {
-        createFirework();
-        var delay = 2000 + Math.random() * 3500;
+        // 同时 2~3 束烟花在不同位置陆续绽开
+        var burstCount = 2 + Math.floor(Math.random() * 2);
+        for (var i = 0; i < burstCount; i++) {
+          setTimeout(function () {
+            createFirework();
+          }, i * 80 + Math.random() * 180);
+        }
+        // 下一轮间隔缩短，频率更高
+        var delay = 600 + Math.random() * 1400;
         setTimeout(launchFireworks, delay);
       }
 
       // ==================== 初始化 ====================
       function init() {
-        initBgm();
-        playBgm();
+        var wasUnlocked = initBgm();
+        if (wasUnlocked) {
+          playBgm();
+        }
 
         resizeBgCanvas();
         initSquares();
@@ -275,7 +305,8 @@
 
         resizeFwCanvas();
         drawFireworks();
-        setTimeout(launchFireworks, 1000);
+        // 烟花更快启动：第一组 600ms 后开始
+        setTimeout(launchFireworks, 600);
 
         window.addEventListener('resize', function () {
           resizeBgCanvas();
@@ -283,8 +314,17 @@
           initSquares();
         });
 
-        document.addEventListener('click', playBgm);
-        document.addEventListener('touchstart', playBgm);
+        // 首次交互续播 BGM（自动播放被阻止时的兜底）
+        document.addEventListener('click', function resumeBgm() {
+          if (bgmAudio && bgmAudio.paused) {
+            bgmAudio.play().catch(function () {});
+          }
+        }, { once: true });
+        document.addEventListener('touchstart', function resumeBgmTouch() {
+          if (bgmAudio && bgmAudio.paused) {
+            bgmAudio.play().catch(function () {});
+          }
+        }, { once: true });
       }
 
       init();
