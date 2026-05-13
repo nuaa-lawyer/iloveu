@@ -181,20 +181,19 @@
          功能：模拟进度条加载 + 纯代码合成加载音效 + 自动跳转
          ================================================================ */
 
-      // ==================== 背景音乐（本地MP3） ====================
-      var bgmAudio = null;
+      // ==================== 背景音乐（全局常驻唯一实例，挂 window.globalBgm） ====================
 
-      // 每隔 1 秒保存播放位置，保证跨页面最小衔接间隙
+      // 每隔 0.5 秒同步播放进度到 sessionStorage，跨页面衔接无缝续播
       setInterval(function () {
-        if (bgmAudio && !bgmAudio.paused) {
-          sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+        if (window.globalBgm && !window.globalBgm.paused) {
+          sessionStorage.setItem('px_bgm_time', window.globalBgm.currentTime);
           sessionStorage.setItem('px_bgm_playing', '1');
         }
-      }, 1000);
+      }, 500);
 
       window.addEventListener('beforeunload', function () {
-        if (bgmAudio && !bgmAudio.paused) {
-          sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+        if (window.globalBgm && !window.globalBgm.paused) {
+          sessionStorage.setItem('px_bgm_time', window.globalBgm.currentTime);
           sessionStorage.setItem('px_bgm_playing', '1');
         }
       });
@@ -329,14 +328,14 @@
       readyBtn.addEventListener('click', function () {
         // 激活音频上下文（用户手势解锁浏览器自动播放限制）
         getAudioCtx();
-        // 初始化并播放背景音乐（全局唯一常驻音频实例）
-        if (!bgmAudio) {
-          bgmAudio = new Audio('/music/bgm.mp3');
-          bgmAudio.loop = true;
-          bgmAudio.volume = 0.35;
-          bgmAudio.play().then(function () {
+        // 初始化全局常驻背景音乐（仅此一处创建，其他页面只读复用）
+        if (!window.globalBgm) {
+          window.globalBgm = new Audio('/music/bgm.mp3');
+          window.globalBgm.loop = true;
+          window.globalBgm.volume = 0.35;
+          window.globalBgm.play().then(function () {
             sessionStorage.setItem('px_bgm_unlocked', '1');
-            sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
+            sessionStorage.setItem('px_bgm_time', window.globalBgm.currentTime);
           }).catch(function () {});
         }
         // 点击反馈音效

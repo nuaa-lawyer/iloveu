@@ -358,55 +358,53 @@
         } catch (e) {}
       }
 
-      // ==================== 背景音乐（本地MP3） ====================
+      // ==================== 背景音乐（全局常驻实例，复用 window.globalBgm） ====================
 
-      var bgmAudio = null;
+      function resumeGlobalBgm() {
+        if (!window.globalBgm) {
+          window.globalBgm = new Audio('/music/bgm.mp3');
+          window.globalBgm.loop = true;
+          window.globalBgm.volume = 0.35;
 
-      function initBgm() {
-        if (bgmAudio) return;
-        bgmAudio = new Audio('/music/bgm.mp3');
-        bgmAudio.loop = true;
-        bgmAudio.volume = 0.35;
+          var savedTime = parseFloat(sessionStorage.getItem('px_bgm_time')) || 0;
+          var wasUnlocked = sessionStorage.getItem('px_bgm_unlocked') === '1';
 
-        var savedTime = parseFloat(sessionStorage.getItem('px_bgm_time')) || 0;
-        var wasUnlocked = sessionStorage.getItem('px_bgm_unlocked') === '1';
+          var seekDone = false;
+          window.globalBgm.addEventListener('loadedmetadata', function seekMeta() {
+            if (!seekDone && savedTime > 0 && savedTime < window.globalBgm.duration) {
+              window.globalBgm.currentTime = savedTime;
+              seekDone = true;
+            }
+          });
+          window.globalBgm.addEventListener('canplay', function seekCan() {
+            if (!seekDone && savedTime > 0 && savedTime < window.globalBgm.duration) {
+              window.globalBgm.currentTime = savedTime;
+              seekDone = true;
+            }
+          });
 
-        var seekDone = false;
-        bgmAudio.addEventListener('loadedmetadata', function () {
-          if (!seekDone && savedTime > 0 && savedTime < bgmAudio.duration) {
-            bgmAudio.currentTime = savedTime;
-            seekDone = true;
+          if (wasUnlocked) {
+            window.globalBgm.play().catch(function () {});
           }
-        });
-        bgmAudio.addEventListener('canplay', function () {
-          if (!seekDone && savedTime > 0 && savedTime < bgmAudio.duration) {
-            bgmAudio.currentTime = savedTime;
-            seekDone = true;
-          }
-        });
-
-        setInterval(function () {
-          if (bgmAudio && !bgmAudio.paused) {
-            sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
-            sessionStorage.setItem('px_bgm_playing', '1');
-          }
-        }, 1000);
-
-        window.addEventListener('beforeunload', function () {
-          if (bgmAudio && !bgmAudio.paused) {
-            sessionStorage.setItem('px_bgm_time', bgmAudio.currentTime);
-            sessionStorage.setItem('px_bgm_playing', '1');
-          }
-        });
-
-        return wasUnlocked;
-      }
-
-      function playBgm() {
-        if (bgmAudio && bgmAudio.paused) {
-          bgmAudio.play().catch(function () {});
+        } else if (window.globalBgm.paused) {
+          window.globalBgm.play().catch(function () {});
         }
       }
+
+      // 持续同步播放进度到 sessionStorage（跨页面无缝续播）
+      setInterval(function () {
+        if (window.globalBgm && !window.globalBgm.paused) {
+          sessionStorage.setItem('px_bgm_time', window.globalBgm.currentTime);
+          sessionStorage.setItem('px_bgm_playing', '1');
+        }
+      }, 500);
+
+      window.addEventListener('beforeunload', function () {
+        if (window.globalBgm && !window.globalBgm.paused) {
+          sessionStorage.setItem('px_bgm_time', window.globalBgm.currentTime);
+          sessionStorage.setItem('px_bgm_playing', '1');
+        }
+      });
 
       // ==================== 像素方块流动背景 ====================
 
@@ -605,13 +603,11 @@
 
       // ==================== 页面初始化 ====================
 
-      /** 用户首次交互时激活音频（AudioContext + BGM），打字机已在页面加载时独立启动 */
+      /** 用户首次交互时解锁 AudioContext（仅音效上下文，不干扰全局 BGM） */
       function onFirstInteraction() {
-        // 创建并解锁 AudioContext（与 BGM 同一手势内完成，避免后续打字音效抢占音频焦点）
         getAudioCtx();
-        // 启动/续播背景音乐
-        if (bgmAudio && bgmAudio.paused) {
-          bgmAudio.play().catch(function () {});
+        if (window.globalBgm && window.globalBgm.paused) {
+          window.globalBgm.play().catch(function () {});
         }
 
         document.removeEventListener('click', onFirstInteraction);
@@ -621,8 +617,8 @@
 
       /** 初始化页面 */
       function init() {
-        // 初始化背景音乐（创建 Audio 实例，读取断点位置）
-        var wasUnlocked = initBgm();
+        // 接续全局常驻背景音乐（复用首页创建的 window.globalBgm，绝不重新创建）
+        resumeGlobalBgm();
 
         // 初始化背景方块
         resizeCanvas();
@@ -661,13 +657,8 @@
         // 打字机文本动画立即启动（不依赖 BGM，不依赖用户交互）
         typeNextChar();
 
-        // 尝试自动续播 BGM（桌面浏览器在已解锁后通常允许）
-        if (wasUnlocked) {
-          playBgm();
-        }
-
-        // 如果 BGM 未能自动播放，则在首次交互时启动
-        if (!bgmAudio || bgmAudio.paused) {
+        // 如果 BGM 未能自动续播，则在首次交互时补启动
+        if (!window.globalBgm || window.globalBgm.paused) {
           document.addEventListener('click', onFirstInteraction);
           document.addEventListener('touchstart', onFirstInteraction);
           document.addEventListener('keydown', onFirstInteraction);
