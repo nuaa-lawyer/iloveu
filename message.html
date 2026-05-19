@@ -17,6 +17,7 @@
       background: #FFF8F6;
       min-height: 100vh;
       font-family: 'VT323', 'Courier New', monospace;
+      cursor: none; /* 隐藏默认鼠标，用自定义爱心替代 */
       /* 页面淡入 */
       animation: pageFadeIn 0.8s ease;
       transition: opacity 0.6s ease;
@@ -289,6 +290,18 @@
         0 2px 0 #B8A0C0;
     }
 
+    /* ===== 鼠标跟随爱心容器 ===== */
+    .cursor-heart {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      width: 24px;
+      height: 24px;
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+    .cursor-heart.visible { opacity: 1; }
+
     /* ===== 响应式 ===== */
     @media (max-width: 480px) {
       .page-content { padding: 1.5rem 1rem 3rem; }
@@ -303,6 +316,9 @@
 
   <!-- 背景画布（流动像素方块，低透明度） -->
   <canvas id="bgCanvas"></canvas>
+
+  <!-- 鼠标跟随爱心 -->
+  <canvas class="cursor-heart" id="cursorHeart" width="24" height="24"></canvas>
 
   <!-- 主内容 -->
   <div class="page-content">
@@ -384,6 +400,8 @@
       // ==================== DOM 元素 ====================
       var bgCanvas     = document.getElementById('bgCanvas');
       var bgCtx        = bgCanvas.getContext('2d');
+      var cursorHeartEl = document.getElementById('cursorHeart');
+      var cursorCtx     = cursorHeartEl.getContext('2d');
       var msgInput     = document.getElementById('msgInput');
       var btnSend      = document.getElementById('btnSend');
       var sendStatus   = document.getElementById('sendStatus');
@@ -392,6 +410,9 @@
       // ==================== 全局状态 ====================
       var audioCtx     = null;
       var isSending    = false; // 防重复提交
+      var mouseX = 0, mouseY = 0; // 鼠标位置
+      var cursorVisible = false;
+      var cursorShowTimer = null;
 
       // ==================== 音频工具函数 ====================
 
@@ -474,6 +495,66 @@
           });
         } catch (e) {}
       }
+
+      // ==================== 像素爱心绘制 ====================
+
+      function drawPixelHeart(ctx, canvasW, canvasH, color) {
+        var pixelSize = canvasW / 8;
+        var heartShape = [
+          [0,1,1,0,0,1,1,0],
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1],
+          [0,1,1,1,1,1,1,0],
+          [0,0,1,1,1,1,0,0],
+          [0,0,0,1,1,0,0,0],
+          [0,0,0,0,0,0,0,0],
+        ];
+        ctx.clearRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = color;
+        heartShape.forEach(function (row, y) {
+          row.forEach(function (cell, x) {
+            if (cell) {
+              ctx.fillRect(
+                Math.floor(x * pixelSize),
+                Math.floor(y * pixelSize),
+                Math.ceil(pixelSize),
+                Math.ceil(pixelSize)
+              );
+            }
+          });
+        });
+      }
+
+      function drawCursorHeart() {
+        drawPixelHeart(cursorCtx, cursorHeartEl.width, cursorHeartEl.height, '#E8A0B4');
+      }
+
+      // ==================== 鼠标跟随爱心 ====================
+
+      function updateCursorHeart() {
+        cursorHeartEl.style.left = (mouseX - 12) + 'px';
+        cursorHeartEl.style.top  = (mouseY - 12) + 'px';
+        requestAnimationFrame(updateCursorHeart);
+      }
+
+      document.addEventListener('mousemove', function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (!cursorVisible) {
+          cursorVisible = true;
+          cursorHeartEl.classList.add('visible');
+        }
+        clearTimeout(cursorShowTimer);
+        cursorShowTimer = setTimeout(function () {
+          cursorVisible = false;
+          cursorHeartEl.classList.remove('visible');
+        }, 2000);
+      });
+
+      document.addEventListener('touchstart', function () {
+        cursorHeartEl.style.display = 'none';
+      });
 
       // ==================== 背景音乐（全局常驻实例，复用 window.globalBgm） ====================
 
@@ -718,6 +799,10 @@
         resizeCanvas();
         initSquares();
         drawBgFrame();
+
+        // 鼠标跟随爱心
+        drawCursorHeart();
+        updateCursorHeart();
 
         window.addEventListener('resize', function () {
           resizeCanvas();

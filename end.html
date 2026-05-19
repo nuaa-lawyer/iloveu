@@ -18,6 +18,7 @@
       min-height: 100vh;
       overflow: hidden;
       font-family: 'Press Start 2P', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      cursor: none; /* 隐藏默认鼠标，用自定义爱心替代 */
       animation: pageFadeIn 1.2s ease;
       transition: opacity 0.6s ease;
     }
@@ -80,6 +81,18 @@
       50%      { opacity: 1; }
     }
 
+    /* ===== 鼠标跟随爱心容器 ===== */
+    .cursor-heart {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      width: 24px;
+      height: 24px;
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+    .cursor-heart.visible { opacity: 1; }
+
     /* ===== 响应式 ===== */
     @media (max-width: 480px) {
       .end-text { font-size: 12px; letter-spacing: 1px; }
@@ -94,6 +107,9 @@
 
   <!-- 像素烟花 -->
   <canvas id="fireworkCanvas"></canvas>
+
+  <!-- 鼠标跟随爱心 -->
+  <canvas class="cursor-heart" id="cursorHeart" width="24" height="24"></canvas>
 
   <!-- 主内容 -->
   <div class="end-content">
@@ -160,6 +176,11 @@
       // ==================== 浮动方块背景 ====================
       var bgCanvas = document.getElementById('bgCanvas');
       var bgCtx = bgCanvas.getContext('2d');
+      var cursorHeartEl = document.getElementById('cursorHeart');
+      var cursorCtx     = cursorHeartEl.getContext('2d');
+      var mouseX = 0, mouseY = 0;
+      var cursorVisible = false;
+      var cursorShowTimer = null;
 
       var squareColors = [
         'rgba(255,209,220,0.22)',
@@ -211,6 +232,66 @@
         });
         requestAnimationFrame(drawBgFrame);
       }
+
+      // ==================== 像素爱心绘制 ====================
+
+      function drawPixelHeart(ctx, canvasW, canvasH, color) {
+        var pixelSize = canvasW / 8;
+        var heartShape = [
+          [0,1,1,0,0,1,1,0],
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1],
+          [0,1,1,1,1,1,1,0],
+          [0,0,1,1,1,1,0,0],
+          [0,0,0,1,1,0,0,0],
+          [0,0,0,0,0,0,0,0],
+        ];
+        ctx.clearRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = color;
+        heartShape.forEach(function (row, y) {
+          row.forEach(function (cell, x) {
+            if (cell) {
+              ctx.fillRect(
+                Math.floor(x * pixelSize),
+                Math.floor(y * pixelSize),
+                Math.ceil(pixelSize),
+                Math.ceil(pixelSize)
+              );
+            }
+          });
+        });
+      }
+
+      function drawCursorHeart() {
+        drawPixelHeart(cursorCtx, cursorHeartEl.width, cursorHeartEl.height, '#E8A0B4');
+      }
+
+      // ==================== 鼠标跟随爱心 ====================
+
+      function updateCursorHeart() {
+        cursorHeartEl.style.left = (mouseX - 12) + 'px';
+        cursorHeartEl.style.top  = (mouseY - 12) + 'px';
+        requestAnimationFrame(updateCursorHeart);
+      }
+
+      document.addEventListener('mousemove', function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (!cursorVisible) {
+          cursorVisible = true;
+          cursorHeartEl.classList.add('visible');
+        }
+        clearTimeout(cursorShowTimer);
+        cursorShowTimer = setTimeout(function () {
+          cursorVisible = false;
+          cursorHeartEl.classList.remove('visible');
+        }, 2000);
+      });
+
+      document.addEventListener('touchstart', function () {
+        cursorHeartEl.style.display = 'none';
+      });
 
       // ==================== 像素烟花动画 ====================
       var fwCanvas = document.getElementById('fireworkCanvas');
@@ -302,6 +383,10 @@
         drawFireworks();
         // 烟花更快启动：第一组 600ms 后开始
         setTimeout(launchFireworks, 600);
+
+        // 鼠标跟随爱心
+        drawCursorHeart();
+        updateCursorHeart();
 
         window.addEventListener('resize', function () {
           resizeBgCanvas();
